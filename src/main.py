@@ -1,0 +1,11 @@
+import sys
+import os
+
+# 将 src 目录添加到 Python 路径，确保可以导入
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from src.ui.ide import GameIDE
+
+if __name__ == "__main__":
+    app = GameIDE()
+    app.run()

@@ -3,44 +3,26 @@
         [
             {
                 "type": "carrot",
-                "growth": 1.4939999999999996
+                "growth": 3.0029999999999952
             },
             {
                 "type": "carrot",
-                "growth": 0.8800000000000007
+                "growth": 3.0029999999999952
             },
             {
                 "type": "carrot",
-                "growth": 0.2700000000000001
+                "growth": 2.9269999999999965
             },
             {
                 "type": "carrot",
-                "growth": 3.0139999999999962
+                "growth": 2.292999999999998
             },
-            {
-                "type": "carrot",
-                "growth": 3.0109999999999952
-            },
-            {
-                "type": "carrot",
-                "growth": 3.009999999999995
-            },
-            {
-                "type": "carrot",
-                "growth": 3.000999999999995
-            },
-            {
-                "type": "carrot",
-                "growth": 3.015999999999995
-            },
-            {
-                "type": "carrot",
-                "growth": 2.7189999999999963
-            },
-            {
-                "type": "carrot",
-                "growth": 2.105999999999998
-            }
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
         ],
         [
             null,
@@ -152,11 +134,8 @@
         ]
     ],
     "drone": {
-        "x": 3,
+        "x": 4,
         "y": 0,
-        "inventory": {
-            "Carrot": 33
-        }
-    },
-    "user_code": "# FarmOS Automation Script\n# Press TAB to hide/show editor\n\nwhile True:\n    drone.plant('carrot')\n    drone.move('East')\n    drone.harvest()"
+        "inventory": {}
+    }
 }

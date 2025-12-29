@@ -56,5 +56,17 @@
             "shape": "rounded_rectangle",
             "shape_corner_radius": "10"
         }
+    },
+    "#minimize_button": {
+        "colours": {
+            "normal_bg": "#00000000",
+            "hovered_bg": "#3a4048",
+            "active_bg": "#7289da",
+            "normal_text": "#eeeeee",
+            "normal_border": "#00000000"
+        },
+        "misc": {
+            "border_width": "0"
+        }
     }
 }

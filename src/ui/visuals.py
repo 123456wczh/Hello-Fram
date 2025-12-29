@@ -222,12 +222,17 @@ class VisualManager:
         self.spawn_dust(x, y)
 
     def spawn_floating_text(self, x, y, text, color=(255, 215, 0)):
-        if not self.font: return
+        if not self.font: 
+             if pygame.font.get_init():
+                 self.font = pygame.font.SysFont("Consolas", 16, bold=True)
+             else: return
+
         # Render text to surface
         txt_surf = self.font.render(str(text), True, color)
         # Create a particle that floats up
         p = Particle(x, y, txt_surf, life=1.5, vel=(0, -40), fade=True)
         self.particles.append(p)
+
 
     # --- Core Loop ---
 

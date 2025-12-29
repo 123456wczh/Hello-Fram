@@ -4,7 +4,13 @@ from src.config import SAVE_FILE
 
 class SaveManager:
     @staticmethod
-    def save_game(farm, drone, code_text):
+    def ensure_user_scripts_dir():
+        if not os.path.exists("user_scripts"):
+            os.makedirs("user_scripts")
+
+    @staticmethod
+    def save_game(farm, drone, code_text=None):
+
         """
         参数:
         farm: Farm 对象
@@ -13,9 +19,9 @@ class SaveManager:
         """
         data = {
             "farm": farm.to_dict(),
-            "drone": drone.to_dict(),
-            "user_code": code_text  # 直接把代码字符串存进去
+            "drone": drone.to_dict()
         }
+
         
         try:
             with open(SAVE_FILE, "w", encoding="utf-8") as f:
@@ -30,8 +36,9 @@ class SaveManager:
     def load_game(farm, drone):
         """
         读取存档，并更新传入的 farm 和 drone 对象
-        返回: 存档里的代码字符串 (user_code)
+        返回: True/False
         """
+
         if not os.path.exists(SAVE_FILE):
             print("No save file found.")
             return None
@@ -44,7 +51,8 @@ class SaveManager:
             farm.load_from_data(data["farm"])
             drone.load_from_data(data["drone"])
             
-            return data.get("user_code", "")
+            return True
+
         except Exception as e:
             print(f"Load Failed: {e}")
             return None

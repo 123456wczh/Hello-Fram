@@ -45,13 +45,16 @@ class DroneAPI:
         crop_class = CROP_FACTORY.get(crop_name.lower())
         
         if crop_class:
+            # Auto-Destroy existing to overwrite
+            self.farm.destroy_crop(self.x, self.y)
+            
             new_crop = crop_class() # 实例化对象
             if self.farm.plant_crop(self.x, self.y, new_crop):
                 self.output(f"Planted {new_crop.name}")
                 self.events.append({"type": "plant", "x": self.x, "y": self.y, "name": new_crop.name})
                 return True
             else:
-                self.output(f"Fail: Tile not empty")
+                self.output(f"Fail: Tile blocked (Bedrock?)")
         else:
             self.output(f"Fail: Unknown crop '{crop_name}'")
         return False
@@ -62,14 +65,27 @@ class DroneAPI:
         
         if crop_obj:
             name = crop_obj.name
-            self.inventory[name] = self.inventory.get(name, 0) + 1
-            self.output(f"Harvested {name}! Bag: {self.inventory}")
-            self.events.append({"type": "harvest", "x": self.x, "y": self.y, "name": name})
+            amount = 1
+            if hasattr(crop_obj, 'size'):
+                amount = crop_obj.size * crop_obj.size
+                
+            self.inventory[name] = self.inventory.get(name, 0) + amount
+            self.output(f"Harvested {amount}x {name}! Bag: {self.inventory}")
+            # Visuals might need to know amount? API just sends name.
+            # Maybe update event to include amount?
+            self.events.append({"type": "harvest", "x": self.x, "y": self.y, "name": name, "amount": amount})
             return True
         return False
     
     def get_pos(self):
         return self.x, self.y
+    
+    def destroy(self):
+        self._check()
+        if self.farm.destroy_crop(self.x, self.y):
+            self.events.append({"type": "plant", "x": self.x, "y": self.y, "name": "poof"}) # Reuse plant poof?
+            return True
+        return False
     
     def log(self, msg):
         self.output(str(msg))

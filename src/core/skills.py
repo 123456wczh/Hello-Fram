@@ -19,15 +19,27 @@ class SkillManager:
     def _init_skills(self):
         # Basic Tech Tree
         # Root
-        self.add_skill("speed_1", "Motor Upgrade I", "Drone moves 10% faster", {'carrot': 10}, x=0.5, y=0.8)
+        self.add_skill("speed_1", "Motor Upgrade I", 
+            "Optimizes drone rotors.\n\nEffect: Drone moves 10% faster.\nRequired for advanced operations.", 
+            {'carrot': 10}, x=0.5, y=0.8)
         
         # Left Branch (Farming)
-        self.add_skill("unlock_pumpkin", "Pumpkin Seeds", "Unlock Pumpkin", {'carrot': 50}, parent_id="speed_1", x=0.3, y=0.6)
-        self.add_skill("unlock_sunflower", "Sunflower Seeds", "Unlock Sunflower", {'pumpkin': 20, 'carrot': 50}, parent_id="unlock_pumpkin", x=0.2, y=0.4)
+        self.add_skill("unlock_pumpkin", "Pumpkin Seeds", 
+            "Unlocks genetically modified Pumpkin seeds.\n\nMechanic: Fusion\nPumpkins fuse into giant structures (2x2, 3x3...) for exponential yield.\nWarning: Prone to rotting if left unharvested.", 
+            {'carrot': 50}, parent_id="speed_1", x=0.3, y=0.6)
+            
+        self.add_skill("unlock_sunflower", "Sunflower Seeds", 
+            "Unlocks Sunflower seeds.\n\nMechanic: Phytoremediation\nSunflowers consume pollution. Requires optimized sorting algorithms.", 
+            {'pumpkin': 20, 'carrot': 50}, parent_id="unlock_pumpkin", x=0.2, y=0.4)
         
-        # Right Branch (Automation/Efficiency)
-        self.add_skill("speed_2", "Motor Upgrade II", "Drone moves 20% faster", {'pumpkin': 10}, parent_id="speed_1", x=0.7, y=0.6)
-        self.add_skill("auto_charge", "Solar Panel", "Drone recharges while idle", {'sunflower': 10}, parent_id="speed_2", x=0.8, y=0.4)
+        # Right Branch (Efficiency)
+        self.add_skill("speed_2", "Motor Upgrade II", 
+            "Advanced aerodynamics package.\n\nEffect: Drone moves 20% faster.\nEssential for large-scale logistics.", 
+            {'pumpkin': 10}, parent_id="speed_1", x=0.7, y=0.6)
+            
+        self.add_skill("auto_charge", "Solar Panel", 
+            "Photovoltaic coating.\n\nEffect: Drone recharges energy while idle.\n(Currently Passive)", 
+            {'sunflower': 10}, parent_id="speed_2", x=0.8, y=0.4)
 
     def add_skill(self, sid, name, desc, cost, parent_id=None, x=0, y=0):
         self.skills[sid] = SkillNode(sid, name, desc, cost, parent_id, x, y)

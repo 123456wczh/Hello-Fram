@@ -21,5 +21,6 @@ SAVE_FILE = "savegame.json"
 
 # 其他平衡常数
 DRONE_MOVE_DELAY = 0.2
-GRID_WIDTH = 10
+# Standard Grid
+GRID_WIDTH = 10 
 GRID_HEIGHT = 10

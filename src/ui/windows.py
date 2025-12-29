@@ -162,24 +162,6 @@ class CodeEditorWindow(BaseModal):
             return False
 
         
-    def save_to_disk(self):
-        """Save content to disk if it's a user script."""
-        # Safety check: Don't overwrite examples or system files unless intended
-        # Current logic: If it's in user_scripts, save it.
-        # If it's a new file (not in user_scripts yet), save it there.
-        
-        target_dir = "user_scripts"
-        filepath = os.path.join(target_dir, self.filename)
-        
-        try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(self.raw_code)
-            return True
-        except Exception as e:
-            print(f"Failed to write file {filepath}: {e}")
-            return False
-
-        
 
 
 
@@ -193,20 +175,6 @@ class CodeEditorWindow(BaseModal):
         
         # Insert Cursor
         display_code = self.raw_code
-        # We need to inject cursor into raw code first OR ensure highlighter handles it?
-        # The IDE logic was: highlighter.highlight(code) -> returns HTML.
-        # But cursor insertion into HTML is hard.
-        # IDE inserted cursor into HTML? No.
-        # Let's check IDE implementation...
-        # It used: self.code_editor.html_text = highlighted
-        # But where was cursor?
-        # IDE code doesn't explicitly show cursor in HTML? 
-        # Ah, looking at `ide.py` `_update_editor_display`:
-        # It adds `|` or `_` at cursor pos? 
-        # Wait, I didn't see cursor drawing in `ide.py` snippet!
-        # Maybe I missed it.
-        # But I must provide visual feedback.
-        # I will insert `|` at cursor pos in raw text before highlighting.
         
         pre = self.raw_code[:self.cursor_pos]
         post = self.raw_code[self.cursor_pos:]

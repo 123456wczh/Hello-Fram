@@ -194,14 +194,9 @@ class CodeEditorWindow(BaseModal):
         # Focus Check (Click)
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.window.rect.collidepoint(event.pos):
-                self.is_focused = True
-                self._update_display()
-                
-                # Check for Title Bar Click (Top 30px approx)
-                # REMOVED: User requested specific minimize button instead.
-                # rel_y = event.pos[1] - self.window.rect.y
-                # if 0 <= rel_y <= 30:
-                #      self.toggle_collapse()
+                if not self.is_focused:
+                    self.is_focused = True
+                    self._update_display()
 
             else:
                 if self.is_focused: 

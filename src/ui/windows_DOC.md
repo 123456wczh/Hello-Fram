@@ -8,7 +8,7 @@
 | 行号范围 | 代码内容 | 解析与说明 |
 | :--- | :--- | :--- |
 | **14-45** | `BaseModal` | **弹窗基类**。所有窗口的父类。封装了 `pygame_gui.elements.UIWindow` 的创建、居中和显隐逻辑。避免了重复写 `manager=self.manager` 和 `rect` 计算。 |
-| **47-275** | `CodeEditorWindow` | **核心编辑器**。<br>包含 `UITextBox` (代码区) 和 `RUN`/`SAVE`/`STOP` 按钮。<br>**高亮**: `_update_display` 中调用 `SyntaxHighlighter` 并加上光标 `|`。<br>**键盘处理**: 在 `handle_event` 中手动处理输入 (`K_BACKSPACE`, `K_RETURN` 等)，因为 pygame_gui 的文本框本身只支持 HTML 显示，不支持真正的可编程编辑，所以这里实现了一个**简易文本编辑器内核**。 |
+| **47-162** | `CodeEditorWindow` | **核心编辑器**。<br>使用 `UITextEntryBox` 实现。它原生支持光标定位、点击、文字选中和滚动，性能极佳且稳定。<br>**增强**: 实现了**手动撤销/重做栈 (Undo/Redo Stack)**，通过监听 `UI_TEXT_ENTRY_CHANGED` 事件并捕获 `Ctrl+Z/Y` 快捷键，确保在任何环境下都能完美撤销修改。<br>**代价**：目前不再支持 `SyntaxHighlighter` (语法高亮)。 |
 | **276-324** | `CropDetailWindow` | **详情弹窗**。显示作物的大图标、价值与特殊能力介绍 (如南瓜的融合特性)。可拖拽。 |
 | **327-404** | `CropGuideWindow` | **帮助文档**。农业数据库，显示所有已注册作物。使用 `UIScrollingContainer` 制作了滚动列表。动态从 `CROP_FACTORY` 读取数据，无需手动更新。 |
 | **405-508** | `SkillTreeWindow` | **技能树窗口**。<br>**连线**: `_build_ui` 中使用 `pygame.draw.line` 在 `bg_surf` 上绘制技能依赖连线，然后贴到窗口背景上。<br>**按钮**: 根据 `x,y` 坐标动态生成按钮。 |

@@ -4,7 +4,6 @@ from src.config import *
 from src.entities.crops import CROP_FACTORY
 from src.core.skills import SkillManager
 from src.ui.visuals import get_visual_manager
-from src.utils.highlighter import SyntaxHighlighter
 import glob
 import os
 import shutil
@@ -31,6 +30,10 @@ class BaseModal:
         # Allow shrinking to title bar height
         self.window.set_minimum_dimensions((400, 30))
 
+        # --- Full Window Dragging State ---
+        self.is_dragging = False
+        self.drag_offset = (0, 0)
+
         # We can add a "Close" callback if needed, but pygame_gui handles the X button.
         # DO NOT hide here. Container children crash if added to hidden window.
 
@@ -43,79 +46,66 @@ class BaseModal:
     def destroy(self):
         self.window.kill()
 
+    def handle_event(self, event):
+        """Handle full-window dragging logic."""
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Left Click
+                # Only drag if clicking on the window itself
+                if self.window.rect.collidepoint(event.pos):
+                    # Check if click was on a specialized element?
+                    # pygame_gui elements handle their own but we can check z-index or just 'bg'
+                    # For now, let's allow dragging from anywhere unless it's explicitly blocked.
+                    self.is_dragging = True
+                    start_x, start_y = event.pos
+                    self.drag_offset = (
+                        self.window.rect.x - start_x,
+                        self.window.rect.y - start_y,
+                    )
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                self.is_dragging = False
+
+        elif event.type == pygame.MOUSEMOTION:
+            if self.is_dragging:
+                new_x, new_y = event.pos
+                self.window.set_position(
+                    (new_x + self.drag_offset[0], new_y + self.drag_offset[1])
+                )
+
 
 class CodeEditorWindow(BaseModal):
     """
     Independent Code Editor Window.
-    Handles text input, highlighting, and execution requests.
+    Uses UITextEntryBox for native editing (perfect cursor/scrolling) at the cost of syntax highlighting.
     """
 
     def __init__(self, manager, filename, initial_code, ide_ref):
-        # Position cascaded based on count
         offset = len(ide_ref.editor_windows) * 30
-
         super().__init__(manager, f"Editor: {filename}", 500, 600)
 
-        # Override rect for cascading
+        # Cascade windows
         start_x = SCREEN_WIDTH - 520 - offset
         start_y = 50 + offset
         self.window.set_position((start_x, start_y))
 
         self.ide = ide_ref
         self.filename = filename
-        self.raw_code = initial_code
-        self.cursor_pos = len(initial_code)
-        self.scroll_position = 0
 
-        # Highlighter
-        self.highlighter = SyntaxHighlighter("monokai")
+        # --- Manual Undo/Redo Stacks ---
+        self.undo_stack = [initial_code]
+        self.redo_stack = []
+        self._last_pushed_text = initial_code
+        self._ignore_changes = False  # Flag to avoid recursion during undo/redo
 
-        self.is_focused = False
-        self.is_collapsed = False
-        self.original_height = 600
         self._build_ui()
-        self._update_display()
-
-    def show(self):
-        super().show()
-        if hasattr(self, "text_box"):
-            self.text_box.show()
-            # Force update to ensure scrollbar is redrawn/calculated correctly?
-            # Usually not needed but we are paranoid about ghosts now.
-
-    def hide(self):
-        super().hide()
-        if hasattr(self, "text_box"):
-            self.text_box.hide()
-            # Essential: Explicitly hide the scrollbar if it exists
-            # pygame_gui *should* do this, but evidence suggests otherwise.
-            if self.text_box.scroll_bar:
-                self.text_box.scroll_bar.hide()
-
-    def destroy(self):
-        """Explicit cleanup."""
-        if hasattr(self, "text_box"):
-            if self.text_box.scroll_bar:
-                self.text_box.scroll_bar.kill()
-            self.text_box.kill()
-
-        # Kill buttons
-        if hasattr(self, "btn_run"):
-            self.btn_run.kill()
-        if hasattr(self, "btn_save"):
-            self.btn_save.kill()
-        if hasattr(self, "btn_minimize"):
-            self.btn_minimize.kill()
-        if hasattr(self, "btn_stop"):
-            self.btn_stop.kill()
-
-        super().destroy()
+        self.text_box.set_text(initial_code)
 
     def _build_ui(self):
-        # 1. Editor Text Box
-        self.text_box = pygame_gui.elements.UITextBox(
+        # 1. Editor Text Entry Box (Multiline)
+        # This provides native cursor positioning, scrolling, and copy-paste.
+        self.text_box = pygame_gui.elements.UITextEntryBox(
             relative_rect=pygame.Rect((10, 10), (480, 500)),
-            html_text="",
             manager=self.manager,
             container=self.window,
         )
@@ -142,108 +132,69 @@ class CodeEditorWindow(BaseModal):
             container=self.window,
         )
 
-    def save_to_disk(self):
-        """Save content to disk if it's a user script."""
-        # Safety check: Don't overwrite examples or system files unless intended
-        # Current logic: If it's in user_scripts, save it.
-        # If it's a new file (not in user_scripts yet), save it there.
+    def handle_event(self, event):
+        """Handle keyboard shortcuts and track text changes for Undo/Redo."""
+        super().handle_event(event)  # Enable full-window dragging
 
+        # 1. Track Text Changes via USEREVENT from pygame_gui
+        if event.type == pygame_gui.UI_TEXT_ENTRY_CHANGED:
+            if event.ui_element == self.text_box:
+                if not self._ignore_changes:
+                    current = self.text_box.get_text()
+                    # Only push if meaningful change (prevent excessive stacks)
+                    if current != self._last_pushed_text:
+                        self.undo_stack.append(current)
+                        self._last_pushed_text = current
+                        self.redo_stack.clear()  # Clear redo on new edit
+                        if len(self.undo_stack) > 100:
+                            self.undo_stack.pop(0)
+
+        # 2. Handle Shortcuts
+        if event.type == pygame.KEYDOWN:
+            mods = pygame.key.get_mods()
+            is_ctrl = mods & pygame.KMOD_CTRL or mods & pygame.KMOD_META
+
+            if is_ctrl and self.text_box.is_focused:
+                if event.key == pygame.K_z:
+                    self._perform_undo()
+                elif event.key == pygame.K_y:
+                    self._perform_redo()
+
+    def _perform_undo(self):
+        if len(self.undo_stack) > 1:
+            # Current state is top of stack, pop it and move to redo
+            self.redo_stack.append(self.undo_stack.pop())
+            # Restore previous state
+            prev_text = self.undo_stack[-1]
+
+            self._ignore_changes = True
+            self.text_box.set_text(prev_text)
+            self._last_pushed_text = prev_text
+            self._ignore_changes = False
+
+    def _perform_redo(self):
+        if self.redo_stack:
+            next_text = self.redo_stack.pop()
+            self.undo_stack.append(next_text)
+
+            self._ignore_changes = True
+            self.text_box.set_text(next_text)
+            self._last_pushed_text = next_text
+            self._ignore_changes = False
+
+    def save_to_disk(self):
+        """Save content from the text box widget to disk."""
         target_dir = "user_scripts"
         filepath = os.path.join(target_dir, self.filename)
 
         try:
+            content = self.text_box.get_text()
             with open(filepath, "w", encoding="utf-8") as f:
-                f.write(self.raw_code)
+                f.write(content)
             return True
         except Exception as e:
             print(f"Failed to write file {filepath}: {e}")
             return False
-
-    def _update_display(self):
-        # Highlight logic from IDE
-        highlighted = self.highlighter.highlight(self.raw_code)
-
-        # Insert Cursor
-        display_code = self.raw_code
-
-        pre = self.raw_code[: self.cursor_pos]
-        post = self.raw_code[self.cursor_pos :]
-        # Simple for now: Just |
-        cursor_char = "|"
-        if self.is_focused:
-            highlighted = self.highlighter.highlight(pre + cursor_char + post)
-        else:
-            highlighted = self.highlighter.highlight(self.raw_code)
-
-        # 记下当前的滚动像素位置
-        current_scroll_position = 0
-        if self.text_box.scroll_bar:
-            current_scroll_position = self.text_box.scroll_bar.scroll_position
-
-        self.text_box.set_text(highlighted)
-
-        # 恢复滚动位置
-        if self.text_box.scroll_bar:
-            self.text_box.scroll_bar.scroll_position = current_scroll_position
-            self.text_box.scroll_bar.update(0)
-
-    def handle_event(self, event):
-        # Focus Check (Click)
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.window.rect.collidepoint(event.pos):
-                if not self.is_focused:
-                    self.is_focused = True
-                    self._update_display()
-
-            else:
-                if self.is_focused:
-                    self.is_focused = False
-                    self._update_display()
-
-        # Button Events (Handled by IDE usually, or check here if using generic loop)
-        # pygame_gui handles button clicks via USEREVENT.
-        # Here we handle RAW KEYBOARD for editor.
-
-        if not self.is_focused:
-            return
-
-        if event.type == pygame.KEYDOWN:
-            # Ported Logic
-            if event.key == pygame.K_LEFT:
-                self.cursor_pos = max(0, self.cursor_pos - 1)
-            elif event.key == pygame.K_RIGHT:
-                self.cursor_pos = min(len(self.raw_code), self.cursor_pos + 1)
-            elif event.key == pygame.K_BACKSPACE:
-                if self.cursor_pos > 0:
-                    self.raw_code = (
-                        self.raw_code[: self.cursor_pos - 1]
-                        + self.raw_code[self.cursor_pos :]
-                    )
-                    self.cursor_pos -= 1
-            elif event.key == pygame.K_RETURN:
-                self.raw_code = (
-                    self.raw_code[: self.cursor_pos]
-                    + "\n"
-                    + self.raw_code[self.cursor_pos :]
-                )
-                self.cursor_pos += 1
-            elif event.key == pygame.K_TAB:
-                self.raw_code = (
-                    self.raw_code[: self.cursor_pos]
-                    + "    "
-                    + self.raw_code[self.cursor_pos :]
-                )
-                self.cursor_pos += 4
-            else:
-                if event.unicode and event.unicode.isprintable():
-                    self.raw_code = (
-                        self.raw_code[: self.cursor_pos]
-                        + event.unicode
-                        + self.raw_code[self.cursor_pos :]
-                    )
-                    self.cursor_pos += 1
-
-            self._update_display()
 
 
 class CropDetailWindow(BaseModal):
@@ -545,6 +496,7 @@ class NewFileModal(BaseModal):
         self.destroy()
 
     def handle_event(self, event):
+        super().handle_event(event)
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_element == self.btn_create:
                 self.on_create()
@@ -654,6 +606,7 @@ class FileBrowserWindow(BaseModal):
             print(f"Error: File not found {filepath}")
 
     def handle_event(self, event):
+        super().handle_event(event)
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_element == self.btn_open:
                 self.open_selected()
